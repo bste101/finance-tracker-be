@@ -9,8 +9,24 @@ import (
 )
 
 type Querier interface {
+	CreateCategory(ctx context.Context, arg CreateCategoryParams) (Category, error)
+	CreateTransaction(ctx context.Context, arg CreateTransactionParams) (Transaction, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeleteCategory(ctx context.Context, arg DeleteCategoryParams) error
+	DeleteTransaction(ctx context.Context, arg DeleteTransactionParams) error
+	DeleteUser(ctx context.Context, id int64) error
+	GetCategories(ctx context.Context, userID int64) ([]Category, error)
+	GetCategoriesByUserID(ctx context.Context, userID int64) ([]Category, error)
+	GetCategoryBreakdown(ctx context.Context, userID int64) ([]GetCategoryBreakdownRow, error)
+	GetMonthlySummary(ctx context.Context, userID int64) ([]GetMonthlySummaryRow, error)
+	GetSummary(ctx context.Context, userID int64) (GetSummaryRow, error)
+	GetTransactionByID(ctx context.Context, arg GetTransactionByIDParams) (Transaction, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
+	GetUserByID(ctx context.Context, id int64) (GetUserByIDRow, error)
+	ListTransactions(ctx context.Context, userID int64) ([]ListTransactionsRow, error)
+	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (Category, error)
+	UpdateTransaction(ctx context.Context, arg UpdateTransactionParams) (Transaction, error)
+	UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateUserRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

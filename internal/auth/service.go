@@ -6,18 +6,17 @@ import (
 	"os"
 	"time"
 
+	"github.com/bste101/finance-tracker/db/sqlc"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
-
-	"github.com/bste101/finance-tracker/db/sqlc"
 )
 
 type Service struct {
-	q *sqlc.Queries
+	repo *Repository
 }
 
-func NewService(q *sqlc.Queries) *Service {
-	return &Service{q: q}
+func NewService(repo *Repository) *Service {
+	return &Service{repo: repo}
 }
 
 func (s *Service) Register(ctx context.Context, req RegisterRequest) (AuthResponse, error) {
@@ -26,7 +25,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 		return AuthResponse{}, err
 	}
 
-	user, err := s.q.CreateUser(ctx, sqlc.CreateUserParams{
+	user, err := s.repo.CreateUser(ctx, sqlc.CreateUserParams{
 		Name:         req.Name,
 		Email:        req.Email,
 		PasswordHash: string(hash),
@@ -44,13 +43,12 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 }
 
 func (s *Service) Login(ctx context.Context, req LoginRequest) (AuthResponse, error) {
-	user, err := s.q.GetUserByEmail(ctx, req.Email)
+	user, err := s.repo.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		return AuthResponse{}, errors.New("invalid email or password")
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
-	if err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 		return AuthResponse{}, errors.New("invalid email or password")
 	}
 
@@ -76,21 +74,27 @@ func generateToken(userID int64) (string, error) {
 	return token.SignedString([]byte(secret))
 }
 
-func ParseToken(tokenStr, secret, issuer string) (*jwt.MapClaims, error) {
+func ParseToken(tokenStr, secret string) (*jwt.MapClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenStr, &jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
 		}
+
 		return []byte(secret), nil
 	})
+
 	if err != nil {
 		return nil, err
 	}
+
 	if !token.Valid {
 		return nil, errors.New("invalid token")
 	}
-	if claims, ok := token.Claims.(*jwt.MapClaims); ok {
-		return claims, nil
+
+	claims, ok := token.Claims.(*jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("failed to parse claims")
 	}
-	return nil, errors.New("failed to parse claims")
+
+	return claims, nil
 }
